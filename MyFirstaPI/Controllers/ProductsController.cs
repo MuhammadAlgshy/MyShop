@@ -2,6 +2,7 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using MyFirstaPI.Models;
+using System.Linq;
 
 namespace MyFirstaPI.Controllers
 {
@@ -21,9 +22,24 @@ namespace MyFirstaPI.Controllers
         //    return _context.Products.ToArray();
         //}
         [HttpGet]
-        public async Task<ActionResult> GetAllProducts()
+        public async Task<ActionResult> GetAllProducts([FromQuery]ProductQueryParameters query)
         {
-            return Ok(await _context.Products.ToArrayAsync());
+            IQueryable<Product> products = _context.Products;
+
+            if (query.MinPrice != null)
+            {
+                products.Where(p => p.Price >= query.MinPrice.Value);
+            }
+
+            if (query.MaxPrice != null)
+            {
+                products.Where(p => p.Price <= query.MaxPrice.Value);
+            }
+            products = products
+                .Skip(query.Size * (query.Page - 1))
+                .Take(query.Size);
+
+            return Ok(await products.ToArrayAsync());
         }
         [HttpGet("{id}")]
         public async Task<ActionResult> GetProduct(int id)
