@@ -4,13 +4,18 @@ using Microsoft.EntityFrameworkCore;
 
 namespace MyFirstaPI.Controllers
 {
-    [Route("api/[controller]")]
+
+    [ApiVersion("1.0")]
+  
+    [Route("api/v{version:apiVersion}/products")]  
+    [ApiExplorerSettings(GroupName = "v1")]
     [ApiController]
-    public class ProductsController : ControllerBase
+
+    public class ProductsV1Controller : ControllerBase
     {
         private readonly ShopContext _context;
 
-        public ProductsController(ShopContext context)
+        public ProductsV1Controller(ShopContext context)
         {
             _context = context;
 
@@ -18,6 +23,8 @@ namespace MyFirstaPI.Controllers
         }
 
         [HttpGet]
+        
+
         public async Task<ActionResult> GetAllProducts([FromQuery]ProductQueryParameters queryParameters)
         {
             IQueryable<Product> products = _context.Products;
@@ -165,5 +172,78 @@ namespace MyFirstaPI.Controllers
 
             return Ok(products);
         }
+    }
+
+    [ApiVersion("2.0")]
+    [ApiExplorerSettings(GroupName = "v2")]
+    [Route("api/v{version:apiVersion}/products")]
+    [ApiController]
+    public class ProductsV2Controller : ControllerBase
+    {
+        private readonly ShopContext _context;
+
+        public ProductsV2Controller(ShopContext context)
+        {
+            _context = context;
+
+            _context.Database.EnsureCreated();
+        }
+
+        [HttpGet]
+        
+        public async Task<ActionResult> GetAllProducts([FromQuery] ProductQueryParameters queryParameters)
+        {
+            IQueryable<Product> products = _context.Products.Where(
+                p => p.IsAvailable == true);
+
+            if (queryParameters.MinPrice != null)
+            {
+                products = products.Where(
+                    p => p.Price >= queryParameters.MinPrice.Value);
+            }
+
+            if (queryParameters.MaxPrice != null)
+            {
+                products = products.Where(
+                    p => p.Price <= queryParameters.MaxPrice.Value);
+            }
+            if (!string.IsNullOrEmpty(queryParameters.SearchTerm))
+            {
+                products = products.Where(
+                    p => p.Sku.ToLower().Contains(queryParameters.Sku.ToLower()) ||
+                    p.Name.ToLower().Contains(queryParameters.SearchTerm.ToLower())
+                    );
+            }
+
+            if (!string.IsNullOrEmpty(queryParameters.Sku))
+            {
+                products = products.Where(
+                    p => p.Sku == queryParameters.Sku);
+            }
+
+            if (!string.IsNullOrEmpty(queryParameters.Name))
+            {
+                products = products.Where(
+                    p => p.Name.ToLower().Contains(
+                        queryParameters.Name.ToLower()));
+            }
+
+            if (!string.IsNullOrEmpty(queryParameters.SortBy))
+            {
+                if (typeof(Product).GetProperty(queryParameters.SortBy) != null)
+                {
+                    products = products.OrderByCustom(
+                        queryParameters.SortBy,
+                        queryParameters.SortOrder);
+                }
+            }
+
+            products = products
+                .Skip(queryParameters.Size * (queryParameters.Page - 1))
+                .Take(queryParameters.Size);
+
+            return Ok(await products.ToArrayAsync());
+        }
+
     }
 }
