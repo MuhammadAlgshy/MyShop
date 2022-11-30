@@ -12,6 +12,8 @@ builder.Services.AddDefaultIdentity<FrontUser>(options => options.SignIn.Require
 
 // Add services to the container.
 builder.Services.AddRazorPages();
+builder.Services.AddControllers();
+
 
 var app = builder.Build();
 
